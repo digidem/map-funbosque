@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Mapeamento Funbosque</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.2.0/mapbox-gl.js"></script>
+    <link rel="stylesheet" type="text/css"
+        href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .mapboxgl-popup-content img {
+            width: 100%;
+        }
+
+        .mapboxgl-popup-close-button {
+            top: -40px;
+            background: white;
+            font-size: 40px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav id="menu"></nav>
+    <div id="map"></div>
+    </div>
+
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZGQtbWFwZW8iLCJhIjoiY2tuaGtxN2hjMjg5YTJ1b29kb3k4a3hwMCJ9.Q4cR8vp-Z6pP9PTUswy7Vw';
+        const map = new mapboxgl.Map({
+            container: 'map',
+            zoom: 14,
+            center: [-48.45, -1.268],
+            pitch: 45,
+            bearing: 0,
+            style: 'mapbox://styles/dd-mapeo/cl143pibo001315nwckxwxn7f'
+        });
+
+        map.on('load', () => {
+            map.addSource('mapeo-data', {
+                type: 'geojson',
+                data: './mapeo-observation-data.geojson'
+            });
+            // add mapeo data layer
+            map.addLayer({
+                'id': 'mapeo-layer',
+                'type': 'circle',
+                'source': 'mapeo-data',
+                'paint': {
+                    'circle-radius': 8,
+                    'circle-stroke-width': 2,
+                    'circle-color': 'red',
+                    'circle-stroke-color': 'white'
+                }
+            });
+
+            // add a sky layer that will show when the map is highly pitched
+            map.addLayer({
+                'id': 'sky',
+                'type': 'sky',
+                'paint': {
+                    'sky-type': 'atmosphere',
+                    'sky-atmosphere-sun': [0.0, 0.0],
+                    'sky-atmosphere-sun-intensity': 15
+                }
+            });
+
+            map.addControl(new mapboxgl.NavigationControl());
+
+            // mouse behavior for popups
+            map.on('mouseenter', 'March 2022 points', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'March 2022 points', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            map.on('mouseenter', 'March 2022 icons', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'March 2022 icons', () => {
+                map.getCanvas().style.cursor = '';
+            });
+
+            // Popups for Mapeo observations
+            map.on('click', (event) => {
+
+                const features = map.queryRenderedFeatures(event.point);
+                if (!features.length) {
+                    return;
+                }
+
+                const feature = features[0];
+                let popupContent = "";
+                let featureKeys = Object.keys(feature.properties);
+                let featureValues = Object.values(feature.properties);
+
+                for (i = 0; i < featureKeys.length; i++) {
+                    // add photo thumbnails
+                    if (featureKeys[i] == "$photos") {
+                        let obsPhotos = featureValues[i].replace(/[\[\]\"]/g, "").split(',');
+                        for (j = 0; j < obsPhotos.length; j++) {
+                            let featureNotes = "";
+                            if (feature.properties.notes) {
+                                featureNotes = ` data-caption="${feature.properties.notes}"`
+                            }
+                            // popupContent += `<a href="http://23.253.175.113/boititap-korenyo/images/${obsPhotos[j]}" data-fancybox${featureNotes}  target="_blank"><img src="http://23.253.175.113/boititap-korenyo/images/${obsPhotos[j]}" style="width: 25%;" alt="image"></a> `;
+                            popupContent += `<a href="./images/${obsPhotos[j]}" data-fancybox${featureNotes}  target="_blank"><img src="./images/${obsPhotos[j]}" alt="image"></a> `;
+                        }
+                    }
+                }
+
+                const popup = new mapboxgl.Popup({ offset: [0, -15] })
+                    .setLngLat(feature.geometry.coordinates)
+                    .setHTML(popupContent)
+                    .addTo(map);
+            });
+
+            // toggle between different Mapeo datasets
+            const dataToggle = document.createElement('a');
+            dataToggle.href = "#";
+            dataToggle.textContent = "View April 2021 data";
+
+            // layers to turn on/off
+            const dataLayers = ['April 2021 icons', 'March 2022 points', 'March 2022 icons'];
+
+            dataToggle.onclick = (e) => {
+                if (dataToggle.textContent == "View March 2022 data") {
+                    dataToggle.textContent = "View April 2021 data";
+                } else {
+                    dataToggle.textContent = "View March 2022 data";
+                }
+                e.preventDefault();
+                e.stopPropagation();
+
+                for (i = 0; i < dataLayers.length; i++) {
+                    const clickedLayer = dataLayers[i];
+                    const visibility = map.getLayoutProperty(clickedLayer, 'visibility');
+
+                    // toggle layer visibility by changing the layout object's visibility property as set in Studio
+                    if ((visibility === 'visible') || (visibility === undefined)) {
+                        map.setLayoutProperty(clickedLayer, 'visibility', 'none');
+                    } else {
+                        map.setLayoutProperty(clickedLayer, 'visibility', 'visible');
+                    }
+                };
+            }
+        })
+    </script>
+    // jquery for lightbox
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js"></script>
+</body>
+
+</html>
